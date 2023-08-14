@@ -5,6 +5,7 @@ import sun.misc.Unsafe;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -63,14 +64,35 @@ public class MyUnsafe {
 //        System.out.println(aLong);
 
         Unsafe unsafe = getUnsafeByReflectProperty();
-        int baseOffset = unsafe.arrayBaseOffset(int[].class);
-        int[] a = {1, 2, 3, 4};
-//        int[] b = new int[4];
-        int[] b = {0,0,0,0};
+        String[] msg = new String[]{"aa", "bb", "cc", "dd"};
+        int arrayBaseOffset = unsafe.arrayBaseOffset(String[].class);
+//        System.out.println(arrayBaseOffset);
+        int arrayIndexScale = unsafe.arrayIndexScale(String[].class);
+//        System.out.println(arrayIndexScale);
 
-        unsafe.copyMemory(a, baseOffset, b, baseOffset, 16);
-        System.out.println(Arrays.toString(b));
-//        unsafe.setMemory(a, baseOffset, 8, (byte) 1);
+        long offset = 0;
+        for (int i = 0; i < msg.length; i++) {
+            //计算偏移
+
+            offset = arrayBaseOffset + (long) i * arrayIndexScale;
+            String object = (String) unsafe.getObject(msg, offset);
+            System.out.println(object);
+
+        }
+
+
+//        int baseOffset = unsafe.arrayBaseOffset(int[].class);
+//        int[] a = {1, 2, 3, 4};
+////        int[] b = new int[4];
+//        int[] b = {0,0,0,0};
+//
+//        unsafe.copyMemory(a, baseOffset, b, baseOffset, 16);
+//        System.out.println(Arrays.toString(b));
+////        unsafe.setMemory(a, baseOffset, 8, (byte) 1);
+//        String str = "Hello, World!";
+//        byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
+//        int sizeInBytes = bytes.length;
+//        System.out.println("Size in bytes: " + sizeInBytes);
 
 
         //如果用0填充 其实就是初始化内存
