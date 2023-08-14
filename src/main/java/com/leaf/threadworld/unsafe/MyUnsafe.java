@@ -5,8 +5,12 @@ import sun.misc.Unsafe;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
+import java.util.Collections;
 
 public class MyUnsafe {
+
+    private static final Unsafe theUnsafe = getUnsafeByReflectConstruct();
 
 
     /**
@@ -40,11 +44,71 @@ public class MyUnsafe {
         return unsafe;
     }
 
-    //验证成功
-    //sun.misc.Unsafe@75b84c92
-    //sun.misc.Unsafe@232204a1
+//    public void allocateMemory(long bytes) {
+//        theUnsafe.allocateMemory(bytes);
+//    }
+
+
     public static void main(String[] args) {
-        System.out.println(getUnsafeByReflectConstruct());
-        System.out.println(getUnsafeByReflectProperty());
+        //验证成功
+        //sun.misc.Unsafe@75b84c92
+        //sun.misc.Unsafe@232204a1
+//        System.out.println(getUnsafeByReflectConstruct());
+//        System.out.println(getUnsafeByReflectProperty());
+//        Unsafe unsafe = MyUnsafe.getUnsafeByReflectProperty();
+//
+//        long address = memorySth();
+//        unsafe.putLong(address, 1223);
+//        long aLong = unsafe.getLong(address);
+//        System.out.println(aLong);
+
+        Unsafe unsafe = getUnsafeByReflectProperty();
+        int baseOffset = unsafe.arrayBaseOffset(int[].class);
+        int[] a = {1, 2, 3, 4};
+//        int[] b = new int[4];
+        int[] b = {0,0,0,0};
+
+        unsafe.copyMemory(a, baseOffset, b, baseOffset, 16);
+        System.out.println(Arrays.toString(b));
+//        unsafe.setMemory(a, baseOffset, 8, (byte) 1);
+
+
+        //如果用0填充 其实就是初始化内存
+//        long address = unsafe.allocateMemory(16);
+//        //每个字节存1
+//        unsafe.setMemory(address, 16, (byte) 1);
+////        unsafe.freeMemory(address);
+//        //0000000100000001000000010000000100000001000000010000000100000001
+//        System.out.println(unsafe.getLong(address));
+        //char 两个字节       0000000100000001
+//        System.out.println((int)unsafe.getChar(address));
+
     }
+
+//    unsafe 操作内存
+
+//    public static long memorySth() {
+//
+//        Unsafe unsafe = MyUnsafe.getUnsafeByReflectProperty();
+//
+//        //分配内存 内存对齐 堆外内存
+//        long address = unsafe.allocateMemory(16);
+//        //在某个地址存值
+//        unsafe.putLong(address, 12);
+//
+////        unsafe.copyMemory();
+//        long newAddress = unsafe.allocateMemory(16);
+//        unsafe.copyMemory(address, newAddress, 16);
+//        long aLong = unsafe.getLong(newAddress);
+//        System.out.println("copy res====>" + aLong);
+//
+//        System.out.println("unsafe=====>" + address);
+//        //释放内存
+//        unsafe.freeMemory(address);
+//
+//        return address;
+//
+//    }
+
+
 }
