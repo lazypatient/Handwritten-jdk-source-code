@@ -8,28 +8,28 @@ import java.util.function.IntBinaryOperator;
 import java.util.function.IntUnaryOperator;
 
 /**
- * JDK提供的AtomicInteger无法解决ABA问题
- * MyAtomicInteger代码进行了优化，完美解决ABA问题
+ * MyAtomicInteger -----> MyAtomicIntegerPro
+ * 对ABA功能进行了通用抽象封装 保留了部分int方法 如果确实是int 类型可以使用
  */
-public class MyAtomicInteger extends Number implements java.io.Serializable {
+public class MyAtomicIntegerPro<V> implements java.io.Serializable {
 
     private static final long serialVersionUID = 6214790243416807050L;
 
     private static final Unsafe unsafe = MyUnsafe.getUnsafeByReflectProperty();
 
-    static class ValueAndVersion {
+    static class ValueAndVersion<T> {
 
-        private volatile int value;
+        private volatile T value;
         private volatile int version;
 
-        private ValueAndVersion(int value, int version) {
+        private ValueAndVersion(T value, int version) {
             this.value = value;
             this.version = version;
         }
 
     }
 
-    private volatile ValueAndVersion vav;
+    private volatile ValueAndVersion<V> vav;
 
     private static final long valueOffset;
     private static final long vavOffset;
@@ -51,21 +51,24 @@ public class MyAtomicInteger extends Number implements java.io.Serializable {
     }
 
 
-    public MyAtomicInteger(int initialValue, int initialVersion) {
+    public MyAtomicIntegerPro(V initialValue, int initialVersion) {
         this.vav = new ValueAndVersion(initialValue, initialVersion);
     }
 
+    public MyAtomicIntegerPro(V initialValue) {
+        this.vav = new ValueAndVersion(initialValue, -1);
+    }
 
-    public MyAtomicInteger() {
+    public MyAtomicIntegerPro() {
         this.vav = new ValueAndVersion(0, 0);
     }
 
 
-    public final ValueAndVersion get() {
+    public final ValueAndVersion<V> get() {
         return this.vav;
     }
 
-    public final int getValue() {
+    public final V getValue() {
         return this.vav.value;
     }
 
@@ -74,11 +77,11 @@ public class MyAtomicInteger extends Number implements java.io.Serializable {
     }
 
 
-    public final void set(int newValue) {
+    public final void set(V newValue) {
         this.vav.value = newValue;
     }
 
-    public final void set(int newValue, int newVersion) {
+    public final void set(V newValue, int newVersion) {
 //        value = newValue;
         if (newValue != this.vav.value || newVersion != this.vav.version) {
             this.vav = new ValueAndVersion(newValue, newVersion);
@@ -86,25 +89,29 @@ public class MyAtomicInteger extends Number implements java.io.Serializable {
     }
 
 
-    public final void lazySet(int newValue) {
-        unsafe.putOrderedInt(this.vav, valueOffset, newValue);
+    public final void lazySet(V newValue) {
+        unsafe.putOrderedObject(this.vav, valueOffset, newValue);
     }
 
-    public final void lazySet(int newValue, int newVersion) {
+    public final void lazySet(V newValue, int newVersion) {
         unsafe.putOrderedObject(this, vavOffset, new ValueAndVersion(newValue, newVersion));
     }
 
 
-    public final int getAndSet(int newValue) {
-        return unsafe.getAndSetInt(this, valueOffset, newValue);
+    public final V getAndSet(V newValue) {
+        return (V) unsafe.getAndSetObject(this.vav, valueOffset, newValue);
     }
 
 
-    public final boolean compareAndSet(int expect, int update) {
-        return unsafe.compareAndSwapInt(this.vav, valueOffset, expect, update);
+    public final boolean compareAndSet(V expectValue, V updateValue) {
+        ValueAndVersion currVav = this.vav;
+
+        return expectValue == currVav.value &&
+                ((updateValue == currVav.value) ||
+                        (unsafe.compareAndSwapObject(this, vavOffset, currVav, new ValueAndVersion(updateValue, -1))));
     }
 
-    public final boolean compareAndSet(int expectValue, int updateValue, int expectVersion, int updateVersion) {
+    public final boolean compareAndSet(V expectValue, V updateValue, int expectVersion, int updateVersion) {
 
         ValueAndVersion currVav = this.vav;
 
@@ -149,54 +156,54 @@ public class MyAtomicInteger extends Number implements java.io.Serializable {
     }
 
 
-    public final int getAndUpdate(IntUnaryOperator updateFunction) {
-        int prev, next;
-        do {
-            prev = getValue();
-            next = updateFunction.applyAsInt(prev);
-        } while (!compareAndSet(prev, next));
-        return prev;
-    }
+//    public final int getAndUpdate(IntUnaryOperator updateFunction) {
+//        int prev, next;
+//        do {
+//            prev = getValue();
+//            next = updateFunction.applyAsInt(prev);
+//        } while (!compareAndSet(prev, next));
+//        return prev;
+//    }
 
 
-    public final int updateAndGet(IntUnaryOperator updateFunction) {
-        int prev, next;
-        do {
-            prev = getValue();
-            next = updateFunction.applyAsInt(prev);
-        } while (!compareAndSet(prev, next));
-        return next;
-    }
+//    public final int updateAndGet(IntUnaryOperator updateFunction) {
+//        int prev, next;
+//        do {
+//            prev = getValue();
+//            next = updateFunction.applyAsInt(prev);
+//        } while (!compareAndSet(prev, next));
+//        return next;
+//    }
 
 
-    public final int getAndAccumulate(int x,
-                                      IntBinaryOperator accumulatorFunction) {
-        int prev, next;
-        do {
-            prev = getValue();
-            next = accumulatorFunction.applyAsInt(prev, x);
-        } while (!compareAndSet(prev, next));
-        return prev;
-    }
+//    public final int getAndAccumulate(int x,
+//                                      IntBinaryOperator accumulatorFunction) {
+//        int prev, next;
+//        do {
+//            prev = getValue();
+//            next = accumulatorFunction.applyAsInt(prev, x);
+//        } while (!compareAndSet(prev, next));
+//        return prev;
+//    }
 
 
-    public final int accumulateAndGet(int x,
-                                      IntBinaryOperator accumulatorFunction) {
-        int prev, next;
-        do {
-            prev = getValue();
-            next = accumulatorFunction.applyAsInt(prev, x);
-        } while (!compareAndSet(prev, next));
-        return next;
-    }
+//    public final int accumulateAndGet(int x,
+//                                      IntBinaryOperator accumulatorFunction) {
+//        int prev, next;
+//        do {
+//            prev = getValue();
+//            next = accumulatorFunction.applyAsInt(prev, x);
+//        } while (!compareAndSet(prev, next));
+//        return next;
+//    }
 
 
     public String toString() {
-        return Integer.toString(getValue());
+        return Integer.toString((int) getValue());
     }
 
     public int intValue() {
-        return getValue();
+        return (int) getValue();
     }
 
 
