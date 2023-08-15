@@ -3,6 +3,7 @@ package com.leaf.threadworld.test;
 import com.leaf.threadworld.atom.MyAtomicInteger;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.locks.LockSupport;
 
 public class MyAtomicIntegerTest {
 
@@ -30,6 +31,58 @@ public class MyAtomicIntegerTest {
         }
 
 
+        System.out.println("======================验证ABA问题==========================");
+
+
+        Thread t4 = new Thread(() -> {
+            LockSupport.park();
+
+            boolean flag = myAtomicInteger.compareAndSet(1000000, 200, 2, 3);
+            System.out.println(Thread.currentThread().getName()
+                    + "======end=====获取的结果是" + myAtomicInteger.getValue() + "版本号是====="
+                    + myAtomicInteger.getVersion() + "更新的结果是========" + flag);
+        }, "t4");
+
+
+        Thread t3 = new Thread(() -> {
+            LockSupport.park();
+            // myAtomicInteger.compareAndSet(1000000, 99);
+            System.out.println(Thread.currentThread().getName() + "======end=====获取的结果是" + myAtomicInteger.getValue());
+
+            int version = myAtomicInteger.getVersion();
+            System.out.println("第一次版本号=====>" + version + "结果是=====>" + myAtomicInteger.getValue());
+
+            myAtomicInteger.compareAndSet(1000000, 108, version, version + 1);
+            int newVersion = myAtomicInteger.getVersion();
+            System.out.println("第二次版本号=====>" + newVersion + "结果是=====>" + myAtomicInteger.getValue());
+
+            myAtomicInteger.compareAndSet(108, 1000000, newVersion, newVersion + 1);
+            int new2Version = myAtomicInteger.getVersion();
+            System.out.println("第三次版本号=====>" + new2Version + "结果是=====>" + myAtomicInteger.getValue());
+            LockSupport.unpark(t4);
+
+        }, "t3");
+
+
+        Thread t2 = new Thread(() -> {
+            LockSupport.park();
+            myAtomicInteger.compareAndSet(66, 1000000);
+            System.out.println(Thread.currentThread().getName() + "======end=====获取的结果是" + myAtomicInteger.getValue());
+            LockSupport.unpark(t3);
+        }, "t2");
+
+
+        Thread t1 = new Thread(() -> {
+            myAtomicInteger.compareAndSet(1000000, 66);
+            System.out.println(Thread.currentThread().getName() + "======end=====获取的结果是" + myAtomicInteger.getValue());
+            LockSupport.unpark(t2);
+        }, "t1");
+
+
+        t1.start();
+        t2.start();
+        t3.start();
+        t4.start();
 
 
     }
