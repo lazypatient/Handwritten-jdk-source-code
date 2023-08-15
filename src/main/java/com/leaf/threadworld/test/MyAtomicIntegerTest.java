@@ -37,7 +37,7 @@ public class MyAtomicIntegerTest {
         Thread t4 = new Thread(() -> {
             LockSupport.park();
 
-            boolean flag = myAtomicInteger.compareAndSet(1000000, 200, 2, 3);
+            boolean flag = myAtomicInteger.compareAndSet(1000000, 200, myAtomicInteger.getVersion(), myAtomicInteger.getVersion() + 1);
             System.out.println(Thread.currentThread().getName()
                     + "======end=====获取的结果是" + myAtomicInteger.getValue() + "版本号是====="
                     + myAtomicInteger.getVersion() + "更新的结果是========" + flag);
