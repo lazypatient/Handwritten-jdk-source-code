@@ -9,7 +9,7 @@ import java.util.function.IntUnaryOperator;
 
 /**
  * MyAtomicInteger -----> MyAtomicIntegerPro
- * 对ABA功能进行了通用抽象封装 保留了部分int方法 如果确实是int 类型可以使用
+ * 对ABA功能进行了通用抽象封装 Pro版本
  */
 public class MyAtomicIntegerPro<V> implements java.io.Serializable {
 
