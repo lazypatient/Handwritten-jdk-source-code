@@ -31,6 +31,9 @@ public class MyAtomicIntegerTest {
         }
 
 
+        /*
+          测试ABA
+         */
         System.out.println("======================验证ABA问题==========================");
 
 
