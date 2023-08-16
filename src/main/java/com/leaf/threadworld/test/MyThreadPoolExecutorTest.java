@@ -1,6 +1,6 @@
 package com.leaf.threadworld.test;
 
-public class MyThreadPoolExecutor {
+public class MyThreadPoolExecutorTest {
     public static void main(String[] args) {
 
     }
