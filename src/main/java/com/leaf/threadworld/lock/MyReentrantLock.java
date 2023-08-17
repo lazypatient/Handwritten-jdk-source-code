@@ -20,9 +20,14 @@ public class MyReentrantLock implements Lock {
      * 公平锁(可重入)
      */
     static class MyFairSync extends MySync {
+
+        //公平锁加锁
         @Override
         void lock() {
 
+            //参数1有两个功能
+            //1.首次加锁
+            //2.重入
             acquire(1);
 
         }

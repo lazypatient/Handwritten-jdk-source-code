@@ -184,8 +184,12 @@ public abstract class MyAbstractQueuedSynchronizer {
                 }
             }
         } finally {
-            //取消 就是把自己从对列中摘除
-            if (failed) {
+            //取消 就是把node从对列中摘除
+            if (failed) {//这里真的会跨过node节点吗  其实只有next指针跨过了 prev指针并没有跨过
+                //prev指针什么时候跨过呢？这两个方法中 由下一个节点对应的线程去完成
+                //1.shouldParkAfterFailedAcquire
+                //2.cancelAcquire
+                //就是这段代码 node.prev = pred = pred.prev;
                 cancelAcquire(node);
             }
         }
@@ -271,6 +275,18 @@ public abstract class MyAbstractQueuedSynchronizer {
         return Thread.interrupted();
     }
 
+    /**
+     * --------------------------->
+     * <---------------------------
+     * CANCELED to skip
+     * +------+  prev +------+       +------+
+     * |      | <---- |      | <---- |      |
+     * head  | node |  next | node |       | node |  tail
+     * |      | ----> |      | ----> |      |
+     * +------+       +------+       +------+
+     * -------------------------->
+     * <--------------------------
+     */
     private boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
 
         int waitStatus = pred.waitStatus;
@@ -279,25 +295,13 @@ public abstract class MyAbstractQueuedSynchronizer {
             return true;
         }
         if (waitStatus > 0) {//取消状态
-            for (; ; ) {
-                //从右往左一次找前驱节点  如果找到符合SIGNAL状态的前驱节点节点，那么就满足当前节点阻塞条件
-                //CANCELED状态的前驱节点直接跳过
-                /**           --------------------------->
-                 *            <---------------------------
-                 *                   CANCELED to skip
-                 *        +------+  prev +------+       +------+
-                 *        |      | <---- |      | <---- |      |
-                 *  head  | node |  next | node |       | node |  tail
-                 *        |      | ----> |      | ----> |      |
-                 *        +------+       +------+       +------+
-                 *            -------------------------->
-                 *            <--------------------------
-                 */
+            //从右往左一次找前驱节点  如果找到符合SIGNAL状态的前驱节点节点，那么就满足当前节点阻塞条件
+            //CANCELED状态的前驱节点直接跳过
+            do {
                 node.prev = pred = pred.prev;
-                if (pred.waitStatus < 0) {
-                    break;
-                }
             }
+            while (pred.waitStatus > 0);
+
             pred.next = node;
             return true;
         } else {//判断初始状态为0 改状态
