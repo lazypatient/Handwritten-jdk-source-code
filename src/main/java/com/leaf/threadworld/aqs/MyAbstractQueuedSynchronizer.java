@@ -236,16 +236,31 @@ public abstract class MyAbstractQueuedSynchronizer {
                 //所以要在当前node以后的节点去找SINGAL状态的节点去唤醒
                 unparkSuccessor(node);
             }
-
-
+            node.next = node;
         }
-
-
     }
 
+    //唤醒后继节点（通常是头节点去唤醒）
     private void unparkSuccessor(Node node) {
-
-
+        int waitStatus = node.waitStatus;
+        if (waitStatus < 0) {
+            //把改节点恢复为初始状态（因为该节点即将删除出队）
+            compareAndSetWaitState(node, waitStatus, 0);
+        }
+        //获取后继节点 从后往前找
+        Node s = node.next;
+        if (s == null || s.waitStatus > 0) {//CANCELLED
+            s = null;
+            //找到最靠近头节点的可以唤醒的节点 也就是SINGAL是-1的节点
+            for (Node t = tail; t != null && t != node; t = t.prev) {
+                if (t.waitStatus <= 0) {
+                    s = t;
+                }
+            }
+        }
+        if (s != null) {
+            LockSupport.unpark(s.thread);//找到并唤醒后继节点
+        }
     }
 
 
