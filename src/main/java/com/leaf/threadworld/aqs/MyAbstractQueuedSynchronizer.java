@@ -61,7 +61,6 @@ public abstract class MyAbstractQueuedSynchronizer {
         //独占
         static Node EXCLUSIVE = null;
 
-
         private volatile Node prev;
         private volatile Node next;
         private volatile Thread thread;
@@ -331,6 +330,11 @@ public abstract class MyAbstractQueuedSynchronizer {
         return UNSAFE.compareAndSwapInt(this, stateOffset, expect, update);
     }
 
+    /**
+     * 将自己设置为头节点
+     *
+     * @param node
+     */
     private void setHead(Node node) {
         //head 指向成功获取锁的node
         head = node;

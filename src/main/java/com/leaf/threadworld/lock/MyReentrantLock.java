@@ -66,6 +66,12 @@ public class MyReentrantLock implements Lock {
     static class MyUnFairSync extends MySync {
         @Override
         void lock() {
+            //上来就CAS操作，成功直接设置状态为1，表示获取到锁（非公平性 插队抢锁）
+            if (compareAndSetState(0, 1)) {
+                setOwnerThread(Thread.currentThread());
+            } else {
+                acquire(1);
+            }
 
         }
 
