@@ -9,6 +9,16 @@ import java.util.concurrent.locks.Lock;
 public class MyReentrantLock implements Lock {
 
 
+    private final MySync sync;
+
+    public MyReentrantLock() {
+        sync = new MyUnFairSync();
+    }
+
+    public MyReentrantLock(boolean fair) {
+        sync = fair ? new MyFairSync() : new MyUnFairSync();
+    }
+
     /**
      * (MyFairSync | MyUnFairSync) extends MySync
      */
@@ -108,8 +118,8 @@ public class MyReentrantLock implements Lock {
     public void lock() {
         //公平锁 非公平锁
 
-
     }
+
 
     @Override
     public void lockInterruptibly() throws InterruptedException {
