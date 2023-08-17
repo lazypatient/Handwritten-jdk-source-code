@@ -93,9 +93,10 @@ public abstract class MyAbstractQueuedSynchronizer {
 
     //抢锁
     public void acquire(int args) {
-        //尝试快速获取锁 如果失败需要  1.入队   2.自旋
+        //尝试快速获取锁 如果失败需要  1.入队 addNode(Node.EXCLUSIVE)  2.自旋+阻塞 acquireQuene
         if (!tryAcquire(args) && acquireQuene(addNode(Node.EXCLUSIVE), args)) {
-
+            //线程走到这里说明 队列阻塞的线程是被中断唤醒的 所以这里要还原中断
+            Thread.currentThread().interrupt();
 
         }
 
@@ -110,6 +111,7 @@ public abstract class MyAbstractQueuedSynchronizer {
         //2.非第一次入队 调整head tail pred next cas 操作
         Node node = new Node(Thread.currentThread(), mode);
         //获取当前队列最后一个节点
+        //快速尝试入队
         Node pred = tail;
         if (pred != null) { //这里其实可以优化 jdk9已经进行了优化
             //新增节点的前节点就是当前队列的最后节点
@@ -151,23 +153,32 @@ public abstract class MyAbstractQueuedSynchronizer {
 
     /**
      * 自旋 抢锁 阻塞
+     * 如果前区节点是头节点 则快速尝试获取锁CAS，尝试快速获取锁，加锁成功后 当前节点会将前驱节点踢出队列
      */
     public boolean acquireQuene(Node node, int args) {
         boolean failed = true;
+        //发生异常处理
         try {
             boolean interrupted = false;
             for (; ; ) {
-                //1.尝试快速获取锁
-                //如果前区节点是头节点 则快速尝试获取锁CAS
+                //1.如果前区节点是头节点 则快速尝试获取锁CAS，尝试快速获取锁
                 Node preNode = node.preNode();
                 if (preNode == head && tryAcquire(args)) {
-                    //获取锁成功后
+                    //加锁成功后 当前节点会将前驱节点踢出队列， 将当前node设置为head节点
                     setHead(node);
                     preNode.next = null;
                     failed = false;
                     return interrupted;
                 }
-                //2.阻塞 LockSupport.park
+                //2.判断满足阻塞条件+阻塞+正常唤醒+处理中断补偿
+
+                //2.1 shouldParkAfterFailedAcquire
+                //检测是否满足阻塞的条件 只要前驱节点是SINGAL状态 后继节点才可以阻塞
+
+                //2.2 parkAndCheckInterupt 阻塞 LockSupport.park 唤醒有两种方式
+                // 正常唤醒：unpark
+                // 非正常唤醒： interrrupt（中断），interrrupt后 会立即唤醒阻塞线程 如果不清除中断标记位 那么此线程将无法继续阻塞
+                // 所以要中断后要立即清除标记位 业务一致
                 if (shouldParkAfterFailedAcquire(preNode, node) && parkAndCheckInterupt()) {
                     interrupted = true;
                 }
@@ -188,48 +199,61 @@ public abstract class MyAbstractQueuedSynchronizer {
         }
         node.thread = null;
         Node pred = node.prev;
-        for (; ; ) {
-            if (pred.waitStatus > 0) {
-                //跳过CANCELLED状态的节点
-                node.prev = pred = pred.prev;
-            }
-            Node predNext = pred.next;
-            //设置当前节点状态是CANCELLED
-            node.waitStatus = Node.CANCELED;
-            //分2种情况
-            //1.如果是尾节点 CAS修改
-            if (node == tail && compareAndSetTail(node, pred)) {
-                //把尾节点设置为null
-                compareAndSetNext(pred, predNext, null);
-            }
-            //2.假如改节点是中间节点
-            else {
-                int ws = 0;
-                if (pred != head
-                        && (
-                        (ws = pred.waitStatus) == Node.SIGNAL)
-                        ||
-                        (ws <= 0 && compareAndSetWaitState(pred, ws, Node.SIGNAL))
-                ) {
-
+        //前驱节点是SINGAL状态 才可以
+        //跳过CANCELLED状态的节点
+        while (pred.waitStatus > 0) {
+            node.prev = pred = pred.prev;
+        }
+        //此时已经获取SINGAL的前驱节点了 也就是正常的前驱节点了
+        Node predNext = pred.next;
+        //设置当前节点状态是CANCELLED
+        node.waitStatus = Node.CANCELED;
+        //分2种情况
+        //1.如果是尾节点 CAS修改
+        //？？？？？？？？
+        //这么写 我的理解就是找了一次 刚好前驱节点就是当前tail节点 也就是node节点的前一个元素
+        //毕竟入队的时候 已经把状态都改成了-1
+        if (node == tail && compareAndSetTail(node, pred)) {
+            //把尾节点设置为null
+            compareAndSetNext(pred, predNext, null);
+        }//2.假如该节点是中间节点
+        else {
+            int ws;
+            //2.1 pred不是头节点
+            if (pred != head
+                    && ((ws = pred.waitStatus) == Node.SIGNAL
+                    || (ws <= 0 && compareAndSetWaitState(pred, ws, Node.SIGNAL)))
+                    && pred.thread != null) {
+                Node next = node.next;
+                //跨过当前节点
+                if (next != null && next.waitStatus <= 0) {
+                    compareAndSetNext(pred, predNext, next);
                 }
+            } else {
+                //2.2 pred是头节点
+                //只有头节点的后继节点才有资格去唤醒
+                //但是头节点的后继节点 可能也存在很多CANCEL的节点
+                //所以要在当前node以后的节点去找SINGAL状态的节点去唤醒
+                unparkSuccessor(node);
             }
 
 
         }
 
+
+    }
+
+    private void unparkSuccessor(Node node) {
+
+
     }
 
 
     private boolean parkAndCheckInterupt() {
-        //阻塞的线程会卡在这里等待唤醒
-        //unpark ，interrupt 唤醒方式
+        //这里唤醒只有两种情况 第一种是正常唤醒 第二种就是中断
         LockSupport.park(this);
-        return Thread.interrupted();//清除标记位 在某处还原 业务流出不能破坏
-        //这里为什么要清除标记位置呢？
-        //LockSupport 一旦被中断 不清除中断标记 那么将无法在park
-        //C++ openjdk源码 一旦检测 中断标记为 直接结束 不会执行阻塞
-
+        //返回中断标记位 并且重置标记位 不然该节点无法继续阻塞
+        return Thread.interrupted();
     }
 
     private boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
@@ -241,15 +265,27 @@ public abstract class MyAbstractQueuedSynchronizer {
         }
         if (waitStatus > 0) {//取消状态
             for (; ; ) {
-                //从右往左一次找 符合SIGNAL状态的等待节点 CANCELED节点直接跳过
+                //从右往左一次找前驱节点  如果找到符合SIGNAL状态的前驱节点节点，那么就满足当前节点阻塞条件
+                //CANCELED状态的前驱节点直接跳过
+                /**           --------------------------->
+                 *            <---------------------------
+                 *                   CANCELED to skip
+                 *        +------+  prev +------+       +------+
+                 *        |      | <---- |      | <---- |      |
+                 *  head  | node |  next | node |       | node |  tail
+                 *        |      | ----> |      | ----> |      |
+                 *        +------+       +------+       +------+
+                 *            -------------------------->
+                 *            <--------------------------
+                 */
                 node.prev = pred = pred.prev;
-                if (pred.waitStatus > 0) {
+                if (pred.waitStatus < 0) {
                     break;
                 }
             }
             pred.next = node;
             return true;
-        } else {//判断初始状态为0
+        } else {//判断初始状态为0 改状态
             compareAndSetWaitState(pred, waitStatus, Node.SIGNAL);
         }
         return false;
@@ -259,7 +295,7 @@ public abstract class MyAbstractQueuedSynchronizer {
         return UNSAFE.compareAndSwapInt(node, waitStateOffset, expect, update);
     }
 
-    private boolean compareAndSetNext(Node pred, Node expect, Object update) {
+    private boolean compareAndSetNext(Node pred, Node expect, Node update) {
         return UNSAFE.compareAndSwapObject(pred, nextStateOffset, expect, update);
     }
 
