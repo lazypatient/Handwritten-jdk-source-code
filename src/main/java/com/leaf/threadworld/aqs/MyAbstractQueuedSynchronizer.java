@@ -262,9 +262,9 @@ public abstract class MyAbstractQueuedSynchronizer {
             int ws;
             //2.1 pred不是头节点
             if (pred != head
-                    && ((ws = pred.waitStatus) == Node.SIGNAL
-                    || (ws <= 0 && compareAndSetWaitState(pred, ws, Node.SIGNAL)))
-                    && pred.thread != null) {
+                    && ((ws = pred.waitStatus) == Node.SIGNAL//说到底 这里要保证pred状态是SINGAL
+                    || (ws <= 0 && compareAndSetWaitState(pred, ws, Node.SIGNAL)))//这里要保证pred状态是SINGAL
+                    && pred.thread != null) {//只有head节点thred才允许为null
                 Node next = node.next;
                 //跨过当前节点
                 if (next != null && next.waitStatus <= 0) {
@@ -277,11 +277,12 @@ public abstract class MyAbstractQueuedSynchronizer {
                 //所以要在当前node以后的节点去找SINGAL状态的节点去唤醒
                 unparkSuccessor(node);
             }
+            //断开node节点的next指针 可以指向null 也可以指向自己
             node.next = node;
         }
     }
 
-    //唤醒后继节点（通常是头节点去唤醒）
+    //唤醒后继节点（通常是头节点去唤醒）看到这里就很easy了 反正就是找SINGAL状态的节点去唤醒
     private void unparkSuccessor(Node node) {
         int waitStatus = node.waitStatus;
         if (waitStatus < 0) {
@@ -292,7 +293,7 @@ public abstract class MyAbstractQueuedSynchronizer {
         Node s = node.next;
         if (s == null || s.waitStatus > 0) {//CANCELLED
             s = null;
-            //找到最靠近头节点的可以唤醒的节点 也就是SINGAL是-1的节点
+            //从tail找到最靠近头节点的可以唤醒的节点 也就是SINGAL是-1的节点
             for (Node t = tail; t != null && t != node; t = t.prev) {
                 if (t.waitStatus <= 0) {
                     s = t;
