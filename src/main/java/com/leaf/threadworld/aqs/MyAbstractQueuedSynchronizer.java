@@ -186,6 +186,7 @@ public abstract class MyAbstractQueuedSynchronizer {
         //发生异常处理
         try {
             boolean interrupted = false;
+            //死循环 线程一直自获取锁
             for (; ; ) {
                 //1.如果前区节点是头节点 则快速尝试获取锁
                 Node preNode = node.preNode();
@@ -321,23 +322,31 @@ public abstract class MyAbstractQueuedSynchronizer {
      */
 
     private boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
-
+        //获取前驱节点的状态
         int waitStatus = pred.waitStatus;
-        //前驱节点的状态是SIGNAL就阻塞
+        //前驱节点的状态是SIGNAL 则当前节点就满足阻塞的条件
         if (waitStatus == Node.SIGNAL) {
             return true;
         }
-        if (waitStatus > 0) {//取消状态
-            //从右往左一次找前驱节点  如果找到符合SIGNAL状态的前驱节点节点，那么就满足当前节点阻塞条件
-            //CANCELED状态的前驱节点直接跳过
+        if (waitStatus > 0) {//非SIGNAL状态 ；实际CANCELLED 取消状态
+            //从右往左依次找前驱节点，如果找到符合SIGNAL状态的前驱节点节点，那么就满足当前节点阻塞条件
+            //CANCELLED状态的前驱节点直接跳过
             do {
+                //跳过非SIGNAL状态的节点，
                 node.prev = pred = pred.prev;
             }
+            //直到找到SIGNAL状态的节点，将当前node的前指针指向该找到的节点
             while (pred.waitStatus > 0);
 
             pred.next = node;
             return true;
-        } else {//判断初始状态为0 改状态
+        } else {//前驱节点 waitStatus<0 和 >0 都已经处理过了 ；开始讨论waitStatus=0 该如何处理
+            //前驱节点 waitStatus = 0的需要立即修改成SINGAL状态 ; 多线程竞争修改 要用CAS操作
+            //那么问题来了 为什么这里的节点状态会有0 -1 等情况呢 ？
+            //是因为在addNode入队的时候，并没有对node节点的状态做任何的初始化，默认就是0，所以在这里完成了所愿节点的状态初始化
+            //同理 既然不满足前驱节点锁SINGAL状态 那就返回false
+            //下一轮循环就会用到这个SINGAL状态的节点了
+            //这里其实锁一个死循环去处理的
             compareAndSetWaitState(pred, waitStatus, Node.SIGNAL);
         }
         return false;
