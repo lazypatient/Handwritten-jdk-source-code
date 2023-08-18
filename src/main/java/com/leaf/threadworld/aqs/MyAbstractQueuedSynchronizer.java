@@ -151,6 +151,7 @@ public abstract class MyAbstractQueuedSynchronizer {
         }
     }
 
+    //此方法被优化了 暂时不用了
     private void casEnqueue(Node node) {
         for (; ; ) {
             Node tempTail = tail;
