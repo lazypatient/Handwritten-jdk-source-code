@@ -99,6 +99,12 @@ public class MyReentrantLock implements Lock {
 
         }
 
+        /**
+         * 抢锁
+         *
+         * @param args 1 状态值 默认state 0 无锁状态 ；1 有锁状态
+         * @return
+         */
         @Override
         protected boolean tryAcquire(int args) {
 
@@ -108,6 +114,7 @@ public class MyReentrantLock implements Lock {
             if (state == 0) {
                 //非公平锁 不需要检查队列 直接CAS抢锁
                 if (compareAndSetState(0, args)) {
+                    //设置当前线程到ASQ属性中
                     setOwnerThread(currentThread);
                     return true;
                 }

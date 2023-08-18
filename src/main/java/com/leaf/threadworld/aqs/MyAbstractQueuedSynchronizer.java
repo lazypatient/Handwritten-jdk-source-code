@@ -174,8 +174,12 @@ public abstract class MyAbstractQueuedSynchronizer {
 
 
     /**
-     * 自旋 抢锁 阻塞
-     * 如果前区节点是头节点 则快速尝试获取锁CAS，尝试快速获取锁，加锁成功后 当前节点会将前驱节点踢出队列
+     * head节点是已经获取锁的节点了，所以再一次去抢锁就是头节点的后继节点
+     * 那又为什么非得是头节点的后继节点呢，因为这里的队列是先进先出队列，对尾巴进，对头出，懂了吧
+     *
+     * @param node 入队的节点
+     * @param args 锁状态值 1
+     * @return 返回中断信号 false 表明是正常唤醒LockSupport.park ； true表示是非正常唤醒 中断唤醒 true
      */
     public boolean acquireQuene(Node node, int args) {
         boolean failed = true;
@@ -183,19 +187,22 @@ public abstract class MyAbstractQueuedSynchronizer {
         try {
             boolean interrupted = false;
             for (; ; ) {
-                //1.如果前区节点是头节点 则快速尝试获取锁CAS，尝试快速获取锁
+                //1.如果前区节点是头节点 则快速尝试获取锁
                 Node preNode = node.preNode();
                 if (preNode == head && tryAcquire(args)) {
-                    //加锁成功后 当前节点会将前驱节点踢出队列， 将当前node设置为head节点
+                    //走到这里说明
+                    //抢锁成功后，说明旧的头节点已经释放了锁，需要移除队列，在重新设置新的头节点信息
                     setHead(node);
+                    //移除oldHead节点和当前head节点的关联
                     preNode.next = null;
+                    //没有异常
                     failed = false;
+                    //非中断唤醒
                     return interrupted;
                 }
-                //2.判断满足阻塞条件+阻塞+正常唤醒+处理中断补偿
-
+                //2.尝试获取锁失败了 说明当前节点不是head的后继节点
                 //2.1 shouldParkAfterFailedAcquire
-                //检测是否满足阻塞的条件 只要前驱节点是SINGAL状态 后继节点才可以阻塞
+                //检测是否满足阻塞的条件 前驱节点是SINGAL状态 后继节点才可以阻塞；如果找不到则继续向前找
 
                 //2.2 parkAndCheckInterupt 阻塞 LockSupport.park 唤醒有两种方式
                 // 正常唤醒：unpark
@@ -297,18 +304,22 @@ public abstract class MyAbstractQueuedSynchronizer {
         return Thread.interrupted();
     }
 
-    /**
-     * --------------------------->
-     * <---------------------------
-     * CANCELED to skip
-     * +------+  prev +------+       +------+
-     * |      | <---- |      | <---- |      |
-     * head  | node |  next | node |       | node |  tail
-     * |      | ----> |      | ----> |      |
-     * +------+       +------+       +------+
-     * -------------------------->
-     * <--------------------------
+    /**           --------------------------->
+     *            <---------------------------
+     *                   CANCELED to skip
+     *        +------+  prev +------+       +------+
+     *        |      | <---- |      | <---- |      |
+     *  head  | node |  next | node |       | node |  tail
+     *        |      | ----> |      | ----> |      |
+     *        +------+       +------+       +------+
+     *            -------------------------->
+     *            <--------------------------
+     *
+     * @param pred 前驱节点
+     * @param node 当前尝试获取锁失败的节点
+     * @return 满足阻塞的条件 true；不满足 false
      */
+
     private boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
 
         int waitStatus = pred.waitStatus;
@@ -388,9 +399,7 @@ public abstract class MyAbstractQueuedSynchronizer {
      * @param node
      */
     private void setHead(Node node) {
-        //head 指向成功获取锁的node
         head = node;
-        //头节点线程永远锁null
         node.thread = null;
         node.prev = null;
     }
