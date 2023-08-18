@@ -94,11 +94,10 @@ public abstract class MyAbstractQueuedSynchronizer {
     public void acquire(int args) {
         //尝试快速获取锁 如果失败需要  1.入队 addNode(Node.EXCLUSIVE)  2.自旋+阻塞 acquireQuene
         if (!tryAcquire(args) && acquireQuene(addNode(Node.EXCLUSIVE), args)) {
-            //线程走到这里说明 队列阻塞的线程是被中断唤醒的 所以这里要还原中断
+            //线程走到这里说明 阻塞的线程被中断唤醒 但是唤醒的时候做了重置了中断
+            //所以这里中断进行了还原
             Thread.currentThread().interrupt();
-
         }
-
     }
 
     /**
@@ -229,30 +228,36 @@ public abstract class MyAbstractQueuedSynchronizer {
 
     }
 
+    /**
+     * 把发生异常的node节点从队列中移除
+     * 这里其实只调整了发生异常节点的next指针，并没有调整prev指针
+     * 准确说这里只移除了next对应关系
+     *
+     * @param node 抢锁发生异常的节点（线程）
+     */
     private void cancelAcquire(Node node) {
         if (node == null) {
             return;
         }
         node.thread = null;
         Node pred = node.prev;
-        //前驱节点是SINGAL状态 才可以
-        //跳过CANCELLED状态的节点
+        //前驱节点存在SINGAL状态，才可以移除，跳过所有CANCELLED状态的节点
         while (pred.waitStatus > 0) {
+            //其实就是调整异常节点的前指针，使得指针不断指向前驱节点
+            //直到找到SINGAL状态的节点 写到这里了 其实对于数据结构 节点已经很熟悉了
+            //看的也很清楚了
             node.prev = pred = pred.prev;
         }
-        //此时已经获取SINGAL的前驱节点了 也就是正常的前驱节点了
+        //走到这里说明已经找到了状态是SINGAL状态的节点了，并且node.prev指向了此节点
         Node predNext = pred.next;
-        //设置当前节点状态是CANCELLED
+        //设置当前节点状态是CANCELLED 很容易理解 毕竟要摘除队列了嘛
         node.waitStatus = Node.CANCELED;
-        //分2种情况
-        //1.如果是尾节点 CAS修改
-        //？？？？？？？？
-        //这么写 我的理解就是找了一次 刚好前驱节点就是当前tail节点 也就是node节点的前一个元素
-        //毕竟入队的时候 已经把状态都改成了-1
-        if (node == tail && compareAndSetTail(node, pred)) {
-            //把尾节点设置为null
+        //两种情况 注意这里都是断开node.next指针
+        //1.如果当前异常节点是尾节点 pred节点其实就是tail节点前面的节点  head<---...node<---pred<---tail(node)
+        if (node == tail && compareAndSetTail(node, pred)) {//CAS 去修改tail指针 指向pred节点
+            //pred的next指针还是指向node节点（tail），pred.next需要断开，CAS修改为null
             compareAndSetNext(pred, predNext, null);
-        }//2.假如该节点是中间节点
+        }//2.假如该节点是中间节点（又是一个很复杂的地方）
         else {
             int ws;
             //2.1 pred不是头节点
