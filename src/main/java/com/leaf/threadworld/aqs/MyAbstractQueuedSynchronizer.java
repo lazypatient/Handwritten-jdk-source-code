@@ -102,31 +102,53 @@ public abstract class MyAbstractQueuedSynchronizer {
     }
 
     /**
-     * 入队
+     * 在尾指针入队
      */
     public Node addNode(Node mode) {
         //分两种情况 但都是尾部入队
         //1.第一次入队 需要初始化head tail mode节点
         //2.非第一次入队 调整head tail pred next cas 操作
+//        Node node = new Node(Thread.currentThread(), mode);
+//        //获取当前队列最后一个节点
+//        //快速尝试入队
+//        Node pred = tail;
+//        if (pred != null) { //这里其实可以优化 jdk9已经进行了优化
+//            //新增节点的前节点就是当前队列的最后节点
+//            //oldNode<-----newNode
+//            node.prev = pred;
+//            //CAS后 tail就指向了新增的node节点 tail---->newNode
+//            if (compareAndSetTail(pred, node)) {
+//                //oldNode---->newNode
+//                pred.next = node;
+//                return node;
+//            }
+//        }
+//        //走到这里说明  1.队列没有初始化 第一次入队 2.node CAS失败 需要自旋入队
+//        casEnqueue(node);
+//
+//        return node;
+
+        //为了提高可读性，我移除了快速尝试修改tail节点的代码
+        //而且在jdk8之后，这块快速尝试也被移除了 可读性太差了 而且增加了代码的复杂程度
+        //在某种意义上 这种快速尝试入队 并没有提升多大的性能
         Node node = new Node(Thread.currentThread(), mode);
-        //获取当前队列最后一个节点
-        //快速尝试入队
-        Node pred = tail;
-        if (pred != null) { //这里其实可以优化 jdk9已经进行了优化
-            //新增节点的前节点就是当前队列的最后节点
-            //oldNode<-----newNode
-            node.prev = pred;
-            //CAS后 tail就指向了新增的node节点 tail---->newNode
-            if (compareAndSetTail(pred, node)) {
-                //oldNode---->newNode
-                pred.next = node;
-                return node;
+        for (; ; ) {
+            Node tempTail = tail;
+            if (tempTail == null) {
+                //此时需要初始化
+                if (compareAndSetHead(new Node())) {
+                    tail = head;
+                }
+            } else {
+                //重新入队 代码一样的
+                node.prev = tempTail;
+                if (compareAndSetTail(tempTail, node)) {
+                    tempTail.next = node;
+                    //循环入队结束 跳出循环
+                    return node;
+                }
             }
         }
-        //走到这里说明  1.队列没有初始化 第一次入队 2.node CAS失败 需要自旋入队
-        casEnqueue(node);
-
-        return node;
     }
 
     private void casEnqueue(Node node) {
@@ -309,6 +331,35 @@ public abstract class MyAbstractQueuedSynchronizer {
         return false;
     }
 
+    /**
+     * 释放锁
+     *
+     * @param arg
+     * @return
+     */
+    public boolean release(int arg) {
+        //1.state-1
+        if (tryRelease(arg)) {//尝试释放锁
+            //2.唤醒头节点的后继节点
+            Node h = head;
+            if (h != null && h.waitStatus != 0) {
+                unparkSuccessor(h);
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 具体实现看各个锁
+     *
+     * @param arg
+     */
+    protected boolean tryRelease(int arg) {
+        throw new UnsupportedOperationException();
+    }
+
     private boolean compareAndSetWaitState(Node node, int expect, int update) {
         return UNSAFE.compareAndSwapInt(node, waitStateOffset, expect, update);
     }
@@ -354,9 +405,10 @@ public abstract class MyAbstractQueuedSynchronizer {
      * 判断CLH对列有没有节点在排队
      */
     public boolean hasQueuePred() {
-
-
-        return false;
+        Node t = tail;
+        Node h = head;
+        Node s;
+        return h != tail && ((s = h.next) == null || s.thread != Thread.currentThread());
     }
 
 

@@ -24,6 +24,20 @@ public class MyReentrantLock implements Lock {
      */
     abstract static class MySync extends MyAbstractQueuedSynchronizer {
         abstract void lock();
+
+        protected boolean tryRelease(int arg) {
+            int i = getState() - arg;
+            if (Thread.currentThread() != getOwnerThread()) {
+                throw new IllegalMonitorStateException();
+            }
+            boolean free = false;
+            if (i == 0) {
+                free = true;
+                setOwnerThread(null);
+            }
+            setState(i);//走到这里表示重入
+            return free;
+        }
     }
 
     /**
@@ -136,9 +150,15 @@ public class MyReentrantLock implements Lock {
         return false;
     }
 
+    /**
+     * 释放锁（不需要区分公平锁和非公平锁）
+     * 1.state -1---->0 owner = null
+     * 2.唤醒head节点的后继节点
+     * 首先获取锁的线程 已经锁head节点 其次释放锁 需要唤醒head节点的后继节点 先进先出队列
+     */
     @Override
     public void unlock() {
-
+        sync.release(1);
     }
 
     @Override
