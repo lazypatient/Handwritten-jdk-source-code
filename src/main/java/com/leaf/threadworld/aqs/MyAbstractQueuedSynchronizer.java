@@ -102,7 +102,7 @@ public abstract class MyAbstractQueuedSynchronizer {
     }
 
     /**
-     * 在尾指针入队
+     * 在尾指针入队 创建新的Node节点 封装线程 CAS修改尾部指针 成功后node节点
      */
     public Node addNode(Node mode) {
         //分两种情况 但都是尾部入队
