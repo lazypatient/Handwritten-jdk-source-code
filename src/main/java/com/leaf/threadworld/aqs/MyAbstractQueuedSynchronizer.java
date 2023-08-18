@@ -205,16 +205,18 @@ public abstract class MyAbstractQueuedSynchronizer {
                 //2.1 shouldParkAfterFailedAcquire
                 //检测是否满足阻塞的条件 前驱节点是SINGAL状态 后继节点才可以阻塞；如果找不到则继续向前找
 
-                //2.2 parkAndCheckInterupt 阻塞 LockSupport.park 唤醒有两种方式
+                //2.2 parkAndCheckInterupt中调用 LockSupport.park去阻塞当前线程 唤醒有两种方式
                 // 正常唤醒：unpark
-                // 非正常唤醒： interrrupt（中断），interrrupt后 会立即唤醒阻塞线程 如果不清除中断标记位 那么此线程将无法继续阻塞
-                // 所以要中断后要立即清除标记位 业务一致
+                // 非正常唤醒： interrrupt（中断
+                // interrrupt后 会立即唤醒park住的线程 中断标记位置为true 如果不手动重置 当前线程中断标志将永远是true
+                // 所以中断后要立即清除标记位 但为了保证业务一致 需手动给个业务中断标记
+                // 总结：唤醒阻塞线程+手动补偿业务中断标志
                 if (shouldParkAfterFailedAcquire(preNode, node) && parkAndCheckInterupt()) {
                     interrupted = true;
                 }
             }
         } finally {
-            //取消 就是把node从对列中摘除
+            //走到这里说明node自旋发生了异常 需要把node节点从对列中摘除
             if (failed) {//这里真的会跨过node节点吗  其实只有next指针跨过了 prev指针并没有跨过
                 //prev指针什么时候跨过呢？这两个方法中 由下一个节点对应的线程去完成
                 //1.shouldParkAfterFailedAcquire
@@ -297,11 +299,15 @@ public abstract class MyAbstractQueuedSynchronizer {
         }
     }
 
-
+    /**
+     * 返回中断标记位
+     * @return
+     */
     private boolean parkAndCheckInterupt() {
         //这里唤醒只有两种情况 第一种是正常唤醒 第二种就是中断
         LockSupport.park(this);
-        //返回中断标记位 并且重置标记位 不然该节点无法继续阻塞
+        //返回中断标记位 并且重置标记位 如果重置 当发生中断将会一直是true
+        //不然该节点无法继续阻塞
         return Thread.interrupted();
     }
 
