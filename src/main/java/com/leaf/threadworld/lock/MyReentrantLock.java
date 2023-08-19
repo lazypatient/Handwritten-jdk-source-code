@@ -2,6 +2,7 @@ package com.leaf.threadworld.lock;
 
 import com.leaf.threadworld.aqs.MyAbstractQueuedSynchronizer;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -61,12 +62,13 @@ public class MyReentrantLock implements Lock {
          */
         @Override
         protected boolean tryAcquire(int args) {
-
             Thread currentThread = Thread.currentThread();
             int state = getState();
             //state==0 表示没有线程获取锁
             if (state == 0) {
                 //先检查队列 如果没有线程排队则CAS抢锁 否则入队等待
+                //这里有个大前提，就是释放了锁，也就是state=0
+                //并不是网上所说到队列里面有元素就不会走 而是当前锁释放 就会走了
                 if (!hasQueuePred() && compareAndSetState(0, args)) {
                     setOwnerThread(currentThread);
                     return true;
@@ -171,4 +173,14 @@ public class MyReentrantLock implements Lock {
     public Condition newCondition() {
         return null;
     }
+
+    /**
+     * 获取队列中的线程
+     *
+     * @return
+     */
+    public List<Thread> getQueueThreads() {
+        return sync.getQueueThreads();
+    }
+
 }

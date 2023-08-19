@@ -5,6 +5,8 @@ import com.leaf.threadworld.unsafe.MyUnsafe;
 import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.LockSupport;
 
@@ -20,6 +22,15 @@ import java.util.concurrent.locks.LockSupport;
 public abstract class MyAbstractQueuedSynchronizer {
 
     private static final Unsafe UNSAFE = MyUnsafe.getUnsafeByReflectProperty();
+
+    public List<Thread> getQueueThreads() {
+        List<Thread> queuedThreads = new ArrayList<>();
+        for (Node p = tail; p != null; p = p.prev) {
+            if (p.thread != null)
+                queuedThreads.add(p.thread);
+        }
+        return queuedThreads;
+    }
 
     //state 偏移量
     private static long stateOffset;
@@ -147,6 +158,8 @@ public abstract class MyAbstractQueuedSynchronizer {
                     return node;
                 }
             }
+
+
         }
     }
 
@@ -307,6 +320,7 @@ public abstract class MyAbstractQueuedSynchronizer {
 
     /**
      * 返回中断标记位
+     *
      * @return
      */
     private boolean parkAndCheckInterupt() {
@@ -314,19 +328,22 @@ public abstract class MyAbstractQueuedSynchronizer {
         LockSupport.park(this);
         //返回中断标记位 并且重置标记位 如果重置 当发生中断将会一直是true
         //不然该节点无法继续阻塞
+//        System.out.println("=============");
+
         return Thread.interrupted();
     }
 
-    /**           --------------------------->
-     *            <---------------------------
-     *                   CANCELED to skip
-     *        +------+  prev +------+       +------+
-     *        |      | <---- |      | <---- |      |
-     *  head  | node |  next | node |       | node |  tail
-     *        |      | ----> |      | ----> |      |
-     *        +------+       +------+       +------+
-     *            -------------------------->
-     *            <--------------------------
+    /**
+     * --------------------------->
+     * <---------------------------
+     * CANCELED to skip
+     * +------+  prev +------+       +------+
+     * |      | <---- |      | <---- |      |
+     * head  | node |  next | node |       | node |  tail
+     * |      | ----> |      | ----> |      |
+     * +------+       +------+       +------+
+     * -------------------------->
+     * <--------------------------
      *
      * @param pred 前驱节点
      * @param node 当前尝试获取锁失败的节点
@@ -445,17 +462,29 @@ public abstract class MyAbstractQueuedSynchronizer {
         Node h = head;
         Node s;
         //说明此时队列无节点
-        if (h == t) {
-            return true;
-        }
+//        if (h == t) {
+//            return true;
+//        }
         //当队列存在node节点的时候
         // (s = h.next) == null ---> 恒为false
         //s.thread != Thread.currentThread() ---> 恒为false
         //不可能成立
-        else if ((s = h.next) == null || s.thread != Thread.currentThread()) {
-            return false;
-        }
-        return false;
+//        if (h != null) {
+//            System.out.println("=========" + Thread.currentThread().getName() + "==========start");
+//            Node s2 = h.next;
+//            System.out.println(h != t);
+//            System.out.println(s2 == null);
+//            System.out.println(s2.thread != Thread.currentThread());
+//            System.out.println("=========" + Thread.currentThread().getName() + "=========end");
+
+//        }
+
+
+        return (h != t &&
+                ((s = h.next) == null || s.thread != Thread.currentThread()));
+//            return false;
+
+//        return false;
 
     }
 
