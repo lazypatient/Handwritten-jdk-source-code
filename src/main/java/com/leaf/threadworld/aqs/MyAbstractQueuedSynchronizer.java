@@ -458,13 +458,4 @@ public abstract class MyAbstractQueuedSynchronizer {
     public void setState(int state) {
         this.state = state;
     }
-
-
-    public Node getTail() {
-        return tail;
-    }
-
-    public void setTail(Node tail) {
-        this.tail = tail;
-    }
 }
