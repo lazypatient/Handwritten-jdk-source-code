@@ -435,17 +435,28 @@ public abstract class MyAbstractQueuedSynchronizer {
 
 
     /**
-     * 判断CLH对列有没有节点在排队
+     * 判断CLH对列有没有前驱节点 head<---node(前驱节点)
+     * //AQS队列只会摘除异常节点，释放锁的节点状态会置为CANCELLED，不会移出队列
      *
-     * @return
+     * @return false  表示没有前驱节点 ； true 表示有前驱节点
      */
     public boolean hasQueuePred() {
         Node t = tail;
         Node h = head;
         Node s;
-        return h != t //true 说明队列有排队节点 ；
-                && //(s = h.next) == null ｜｜s.thread != Thread.currentThread() ---> true 说明队列没有排队节点
-                ((s = h.next) == null || s.thread != Thread.currentThread());
+        //说明此时队列无节点
+        if (h == t) {
+            return true;
+        }
+        //当队列存在node节点的时候
+        // (s = h.next) == null ---> 恒为false
+        //s.thread != Thread.currentThread() ---> 恒为false
+        //不可能成立
+        else if ((s = h.next) == null || s.thread != Thread.currentThread()) {
+            return false;
+        }
+        return false;
+
     }
 
 
