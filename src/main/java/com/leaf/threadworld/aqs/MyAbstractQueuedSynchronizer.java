@@ -380,7 +380,9 @@ public abstract class MyAbstractQueuedSynchronizer {
             }
             return true;
         }
-
+        //那问题来了，如果重入的话，每次只能减去1，那state何时才会为0呢？只有为0才会唤醒后继节点啊！
+        //其实这里每次调用一次lock，就要对应一个unlock；所以这里会有多个unlock去减去state值
+        //伪代码 try{ lock()....lock().... }  finally{ unlock().... unlock()....}
         return false;
     }
 
@@ -434,12 +436,16 @@ public abstract class MyAbstractQueuedSynchronizer {
 
     /**
      * 判断CLH对列有没有节点在排队
+     *
+     * @return
      */
     public boolean hasQueuePred() {
         Node t = tail;
         Node h = head;
         Node s;
-        return h != tail && ((s = h.next) == null || s.thread != Thread.currentThread());
+        return h != t //true 说明队列有排队节点 ；
+                && //(s = h.next) == null ｜｜s.thread != Thread.currentThread() ---> true 说明队列没有排队节点
+                ((s = h.next) == null || s.thread != Thread.currentThread());
     }
 
 

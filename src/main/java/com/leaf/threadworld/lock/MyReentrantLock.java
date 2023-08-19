@@ -138,7 +138,7 @@ public class MyReentrantLock implements Lock {
     @Override
     public void lock() {
         //公平锁 非公平锁
-
+        sync.lock();
     }
 
 
@@ -158,10 +158,9 @@ public class MyReentrantLock implements Lock {
     }
 
     /**
-     * 释放锁（不需要区分公平锁和非公平锁）
-     * 1.state -1---->0 owner = null
+     * 释放锁 逻辑都是一样的
+     * 1.state 减1 如果不是0 说明是重入；state=0后，owner = null
      * 2.唤醒head节点的后继节点
-     * 首先获取锁的线程 已经锁head节点 其次释放锁 需要唤醒head节点的后继节点 先进先出队列
      */
     @Override
     public void unlock() {
