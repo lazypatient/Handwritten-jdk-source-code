@@ -96,9 +96,9 @@ public class MyReentrantLockTest {
      * 3.1 测试公平锁（默认非公平）
      **/
     public static void test03(MyReentrantLock lock) throws InterruptedException {
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 5; i++) {
             new Thread(() -> {
-                for (int j = 0; j < 1; j++) {
+                for (int j = 0; j < 2; j++) {
                     lock.lock();
                     try {
                         TimeUnit.MILLISECONDS.sleep(100);
@@ -115,7 +115,7 @@ public class MyReentrantLockTest {
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     } finally {
-//                        lock.unlock();
+                        lock.unlock();
                     }
                 }
 
