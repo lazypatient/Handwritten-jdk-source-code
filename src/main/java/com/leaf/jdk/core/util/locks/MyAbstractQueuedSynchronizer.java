@@ -6,6 +6,7 @@ import sun.misc.Unsafe;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.LockSupport;
 
 /*
@@ -67,7 +68,9 @@ public abstract class MyAbstractQueuedSynchronizer implements java.io.Serializab
 
         //共享 ｜ 独占
         Node nextWaiter;
-        //独占
+        //共享模式
+        static final Node SHARED = new Node();
+        //独占模式
         static Node EXCLUSIVE = null;
 
         private volatile Node prev;
@@ -478,20 +481,58 @@ public abstract class MyAbstractQueuedSynchronizer implements java.io.Serializab
 
         return (h != t &&
                 ((s = h.next) == null || s.thread != Thread.currentThread()));
-//            return false;
-
-//        return false;
 
     }
 
     /**
      * 获取共享锁
      *
-     * @param permits 凭证
+     * @param arg 凭证
      */
-    public void acquireSharedInterruptibly(int permits) {
+    public void acquireSharedInterruptibly(int arg) throws InterruptedException {
+        //当前线程在抢锁前就被中断了 直接跑出中断异常
+        if (Thread.interrupted()) {
+            throw new InterruptedException();
+        }
+        //只有有获取不到锁的情况下才<0 入队阻塞
+        if (tryAcquireShared(arg) < 0) {
+            doAcquireSharedInterruptibly(arg);
+        }
+    }
 
-        tryAcquireShared(permits);
+    //入队 阻塞 自旋
+    //参考MyAQS 直接拷贝用过的代码 不重复写了
+    private void doAcquireSharedInterruptibly(int arg) throws InterruptedException {
+        //入队
+        Node node = addNode(Node.SHARED);
+        boolean failed = true;
+        try {
+            //死循环 线程一直自获取锁
+            for (; ; ) {
+                //1.如果前区节点是头节点 则快速尝试获取锁
+                Node preNode = node.preNode();
+                if (preNode == head && tryAcquireShared(arg) >= 0) {
+                    //走到这里说明
+                    //抢锁成功后，说明旧的头节点已经释放了锁，需要移除队列，在重新设置新的头节点信息
+                    setHead(node);
+                    //移除oldHead节点和当前head节点的关联
+                    preNode.next = null;
+                    //没有异常
+                    failed = false;
+                    return;
+                }//通用的方法不说明了
+                if (shouldParkAfterFailedAcquire(preNode, node) && parkAndCheckInterrupt()) {
+                    //和独占锁区别的地方 这里锁直接抛出异常
+                    throw new InterruptedException();
+                }
+            }
+        } finally {
+            //走到这里说明node自旋发生了异常 需要把node节点从对列中摘除
+            if (failed) {
+                cancelAcquire(node);
+            }
+        }
+
 
     }
 

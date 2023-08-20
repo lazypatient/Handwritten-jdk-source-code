@@ -39,6 +39,7 @@ public class MySemaphore implements Serializable {
 
         /**
          * @param permits 凭证（资源）
+         * @return 返回获取成功标识 <0 没有资源分配；>0 有资源可以分配
          */
         @Override
         protected int tryAcquireShared(int permits) {
@@ -64,9 +65,15 @@ public class MySemaphore implements Serializable {
             super(permits);
         }
 
+        /**
+         * 公平锁获取资源
+         *
+         * @param permits 资源 锁 凭证
+         * @return 返回获取成功标识 -1 进入队列等待 ；<0 没有资源分配；>0 有资源可以分配
+         */
         @Override
         protected int tryAcquireShared(int permits) {
-
+            //只要还有凭证 i>0 就循环自旋获取锁
             for (; ; ) {
                 if (hasQueuePred()) {
                     return -1;
@@ -75,7 +82,9 @@ public class MySemaphore implements Serializable {
                 int state = getState();
                 //分配资源的检测  state 总资源 permits 当前需要分配的资源数 默认1
                 int i = state - permits;
-                //如果 i<0 说明资源不足 CAS修改当前所剩的资源数
+                //如果 i<0 说明资源不足
+                //那CAS呢 假设i=0 并且更新成功了 说明最后一个资源被拿到了 说明获取了锁；最后一次获取锁i=0
+                //说明跳出循环只有两种情况 第一种i<0没有资源获取，或者CAS成功获取资源 ；
                 if (i < 0 || compareAndSetState(state, i)) {
                     return i;
                 }
@@ -92,7 +101,7 @@ public class MySemaphore implements Serializable {
     }
 
 
-    public void acquire() {
+    public void acquire() throws InterruptedException {
         mySync.acquireSharedInterruptibly(1);
     }
 
