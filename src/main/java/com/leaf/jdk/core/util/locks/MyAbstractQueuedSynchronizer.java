@@ -516,7 +516,7 @@ public abstract class MyAbstractQueuedSynchronizer implements java.io.Serializab
     /*
     不响应中断
      */
-    private boolean doAcquireShared(int arg) {
+    private void doAcquireShared(int arg) {
         //入队
         Node node = addNode(Node.SHARED);
         boolean failed = true;
@@ -542,7 +542,7 @@ public abstract class MyAbstractQueuedSynchronizer implements java.io.Serializab
                         Thread.currentThread().interrupt();
                     }
                     failed = false;
-                    return interrupt;
+                    return;
                 }//通用的方法不说明了
                 if (shouldParkAfterFailedAcquire(preNode, node) && parkAndCheckInterrupt()) {
                     //和独占锁区别的地方 这里锁直接抛出异常
