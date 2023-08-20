@@ -26,6 +26,21 @@ public class MySemaphore implements Serializable {
             return getState();
         }
 
+        /**
+         * state+1
+         *
+         * @param arg 凭证
+         * @return true CAS修改成功啦
+         */
+        protected boolean tryReleaseShared(int arg) {
+            int current = getState();
+            int next = current + arg;
+            if (next < current) {
+                throw new Error("参数异常！");
+            }
+            //多线程释放
+            return compareAndSetState(current, next);
+        }
     }
 
 
@@ -113,6 +128,10 @@ public class MySemaphore implements Serializable {
      */
     public void acquireUnInterruptibly() {
         mySync.acquireShared(1);
+    }
+
+    public boolean release() {
+        return mySync.releaseShared(1);
     }
 
 

@@ -593,10 +593,40 @@ public abstract class MyAbstractQueuedSynchronizer implements java.io.Serializab
 
     }
 
+
     protected int tryAcquireShared(int permits) {
         //让子类去实现
         throw new UnsupportedOperationException();
 
+    }
+
+    protected boolean tryReleaseShared(int arg) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * 多个线程一起释放
+     */
+    public boolean releaseShared(int arg) {
+        if (tryReleaseShared(arg)) {
+            //唤醒 for循环
+            doReleaseShared();
+        }
+
+    }
+
+    private void doReleaseShared() {
+        for (; ; ) {//肯能是多个线程一起释放（共享锁）
+            Node h = head;
+            //队列中有节点
+            if (h != null && h != tail) {
+                int ws = h.waitStatus;
+                if (!compareAndSetWaitState(h, Node.SIGNAL, 0)) {//多线程修改
+                    continue;
+                }
+                unparkSuccessor(h);
+            }
+        }
     }
 
 
