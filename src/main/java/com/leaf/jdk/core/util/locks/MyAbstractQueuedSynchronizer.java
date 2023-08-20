@@ -495,7 +495,7 @@ public abstract class MyAbstractQueuedSynchronizer implements java.io.Serializab
 
     }
 
-    protected void tryAcquireShared(int permits) {
+    protected int tryAcquireShared(int permits) {
         //让子类去实现
         throw new UnsupportedOperationException();
 

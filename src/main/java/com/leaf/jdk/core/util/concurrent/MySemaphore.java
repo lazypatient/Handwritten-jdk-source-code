@@ -41,7 +41,7 @@ public class MySemaphore implements Serializable {
          * @param permits 凭证（资源）
          */
         @Override
-        protected void tryAcquireShared(int permits) {
+        protected int tryAcquireShared(int permits) {
             for (; ; ) {
                 //创建Semaphore的时候 已经初始化了state的值
                 int state = getState();
@@ -49,9 +49,8 @@ public class MySemaphore implements Serializable {
                 int i = state - permits;
                 //如果 i<0 说明资源不足 CAS修改当前所剩的资源数
                 if (i < 0 || compareAndSetState(state, i)) {
-
+                    return i;
                 }
-
             }
         }
     }
@@ -66,8 +65,21 @@ public class MySemaphore implements Serializable {
         }
 
         @Override
-        protected void tryAcquireShared(int permits) {
+        protected int tryAcquireShared(int permits) {
 
+            for (; ; ) {
+                if (hasQueuePred()) {
+                    return -1;
+                }
+                //创建Semaphore的时候 已经初始化了state的值
+                int state = getState();
+                //分配资源的检测  state 总资源 permits 当前需要分配的资源数 默认1
+                int i = state - permits;
+                //如果 i<0 说明资源不足 CAS修改当前所剩的资源数
+                if (i < 0 || compareAndSetState(state, i)) {
+                    return i;
+                }
+            }
         }
     }
 
