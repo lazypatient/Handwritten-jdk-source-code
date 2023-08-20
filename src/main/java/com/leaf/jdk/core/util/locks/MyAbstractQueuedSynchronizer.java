@@ -17,7 +17,7 @@ import java.util.concurrent.locks.LockSupport;
        |      | ----> |      | ----> |      |
        +------+       +------+       +------+
  */
-public abstract class MyAbstractQueuedSynchronizer {
+public abstract class MyAbstractQueuedSynchronizer implements java.io.Serializable {
 
     private static final Unsafe UNSAFE = MyUnsafe.getUnsafeByReflectProperty();
 
@@ -481,6 +481,23 @@ public abstract class MyAbstractQueuedSynchronizer {
 //            return false;
 
 //        return false;
+
+    }
+
+    /**
+     * 获取共享锁
+     *
+     * @param permits 凭证
+     */
+    public void acquireSharedInterruptibly(int permits) {
+
+        tryAcquireShared(permits);
+
+    }
+
+    protected void tryAcquireShared(int permits) {
+        //让子类去实现
+        throw new UnsupportedOperationException();
 
     }
 
