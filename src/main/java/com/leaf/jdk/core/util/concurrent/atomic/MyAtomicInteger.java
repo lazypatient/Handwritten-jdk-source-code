@@ -1,7 +1,7 @@
-package com.leaf.threadworld.atom;
+package com.leaf.jdk.core.util.concurrent.atomic;
 
 
-import com.leaf.threadworld.unsafe.MyUnsafe;
+import com.leaf.jdk.core.sun.misc.MyUnsafe;
 import sun.misc.Unsafe;
 
 import java.util.function.IntBinaryOperator;

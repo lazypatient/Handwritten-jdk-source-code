@@ -1,6 +1,6 @@
-package com.leaf.threadworld.test;
+package com.leaf.jdk.test;
 
-import com.leaf.threadworld.atom.MyAtomicInteger;
+import com.leaf.jdk.core.util.concurrent.atomic.MyAtomicInteger;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.LockSupport;

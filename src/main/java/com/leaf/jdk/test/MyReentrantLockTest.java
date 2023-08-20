@@ -1,8 +1,7 @@
-package com.leaf.threadworld.test;
+package com.leaf.jdk.test;
 
-import com.leaf.threadworld.lock.MyReentrantLock;
+import com.leaf.jdk.core.util.locks.MyReentrantLock;
 
-import java.lang.management.ThreadInfo;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -13,7 +12,7 @@ public class MyReentrantLockTest {
     static int num = 0;
 
     public static void main(String[] args) throws InterruptedException {
-//        Lock unFairlock = new MyReentrantLock(false);
+        MyReentrantLock unFairlock = new MyReentrantLock(false);
 
 //        test01(unFairlock);
 //        test02(unFairlock);
@@ -21,6 +20,7 @@ public class MyReentrantLockTest {
 
         MyReentrantLock fairLock = new MyReentrantLock(true);
 
+//        test03(unFairlock);
         test03(fairLock);
 //        ReentrantLock lock = new ReentrantLock(true);
 //        test04(lock);
@@ -131,7 +131,7 @@ public class MyReentrantLockTest {
                 for (int j = 0; j < 1; j++) {
                     lock.lock();
                     try {
-                        TimeUnit.MILLISECONDS.sleep(100);
+                        TimeUnit.MILLISECONDS.sleep(3000);
 //                        List<Thread> queueThreads = lock.getQueueThreads();
                         //倒序存进去的 这里要反过来 正序输出
 //                        System.out.print(System.currentTimeMillis()+"   当前执行的线程是    " + Thread.currentThread().getName() + "    线程num是===>[");

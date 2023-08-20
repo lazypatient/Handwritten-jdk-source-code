@@ -1,4 +1,4 @@
-package com.leaf.threadworld.test;
+package com.leaf.jdk.test;
 
 public class InterruptTest {
     public static void main(String[] args) {

@@ -1,6 +1,5 @@
-package com.leaf.threadworld.lock;
+package com.leaf.jdk.core.util.locks;
 
-import com.leaf.threadworld.aqs.MyAbstractQueuedSynchronizer;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;

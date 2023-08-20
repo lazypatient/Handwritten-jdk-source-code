@@ -1,13 +1,11 @@
-package com.leaf.threadworld.aqs;
+package com.leaf.jdk.core.util.locks;
 
 
-import com.leaf.threadworld.unsafe.MyUnsafe;
+import com.leaf.jdk.core.sun.misc.MyUnsafe;
 import sun.misc.Unsafe;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.LockSupport;
 
 /*
