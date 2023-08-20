@@ -17,6 +17,7 @@ public class MySemaphore implements Serializable {
 
         private static final long serialVersionUID = 1192457210091910933L;
 
+        //permits 令牌数
         MySync(int permits) {
             setState(permits);
         }

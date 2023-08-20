@@ -31,15 +31,15 @@ public abstract class MyAbstractQueuedSynchronizer {
     }
 
     //state 偏移量
-    private static long stateOffset;
+    private static final long stateOffset;
 
-    private static long tailOffset;
+    private static final long tailOffset;
 
-    private static long headOffset;
+    private static final long headOffset;
 
-    private static long waitStateOffset;
+    private static final long waitStateOffset;
 
-    private static long nextStateOffset;
+    private static final long nextStateOffset;
 
 
     static {
@@ -76,8 +76,8 @@ public abstract class MyAbstractQueuedSynchronizer {
 
         //节点等待状态
         private volatile int waitStatus;
-        private static int CANCELED = 1;
-        private static int SIGNAL = -1;//前区节点是SIGNAL 后继节点才可以阻塞
+        private static final int CANCELED = 1;
+        private static final int SIGNAL = -1;//前区节点是SIGNAL 后继节点才可以阻塞
 
 
         public Node() {
@@ -101,8 +101,8 @@ public abstract class MyAbstractQueuedSynchronizer {
 
     //抢锁
     public void acquire(int args) {
-        //尝试快速获取锁 如果失败需要  1.入队 addNode(Node.EXCLUSIVE)  2.自旋+阻塞 acquireQuene
-        if (!tryAcquire(args) && acquireQuene(addNode(Node.EXCLUSIVE), args)) {
+        //尝试快速获取锁 如果失败需要  1.入队 addNode(Node.EXCLUSIVE)  2.自旋+阻塞 acquireQueue
+        if (!tryAcquire(args) && acquireQueue(addNode(Node.EXCLUSIVE), args)) {
             //线程走到这里说明 阻塞的线程被中断唤醒 但是唤醒的时候做了重置了中断
             //所以这里中断进行了还原
             Thread.currentThread().interrupt();
@@ -112,7 +112,7 @@ public abstract class MyAbstractQueuedSynchronizer {
     /**
      * 在尾指针入队 创建新的Node节点 封装线程 CAS修改尾部指针 成功后node节点
      */
-    public Node addNode(Node mode) {
+    private Node addNode(Node mode) {
         //分两种情况 但都是尾部入队
         //1.第一次入队 需要初始化head tail mode节点
         //2.非第一次入队 调整head tail pred next cas 操作
@@ -191,7 +191,7 @@ public abstract class MyAbstractQueuedSynchronizer {
      * @param args 锁状态值 1
      * @return 返回中断信号 false 表明是正常唤醒LockSupport.park ； true表示是非正常唤醒 中断唤醒 true
      */
-    public boolean acquireQuene(Node node, int args) {
+    private boolean acquireQueue(Node node, int args) {
         boolean failed = true;
         //发生异常处理
         try {
@@ -221,7 +221,7 @@ public abstract class MyAbstractQueuedSynchronizer {
                 // interrrupt后 会立即唤醒park住的线程 中断标记位置为true 如果不手动重置 当前线程中断标志将永远是true
                 // 所以中断后要立即清除标记位 但为了保证业务一致 需手动给个业务中断标记
                 // 总结：唤醒阻塞线程+手动补偿业务中断标志
-                if (shouldParkAfterFailedAcquire(preNode, node) && parkAndCheckInterupt()) {
+                if (shouldParkAfterFailedAcquire(preNode, node) && parkAndCheckInterrupt()) {
                     interrupted = true;
                 }
             }
@@ -319,9 +319,9 @@ public abstract class MyAbstractQueuedSynchronizer {
     /**
      * 返回中断标记位
      *
-     * @return
+     * @return true 中断唤醒；false unpark唤醒
      */
-    private boolean parkAndCheckInterupt() {
+    private boolean parkAndCheckInterrupt() {
         //这里唤醒只有两种情况 第一种是正常唤醒 第二种就是中断
         LockSupport.park(this);
         //返回中断标记位 并且重置标记位 如果重置 当发生中断将会一直是true
@@ -403,8 +403,6 @@ public abstract class MyAbstractQueuedSynchronizer {
 
     /**
      * 具体实现看各个锁
-     *
-     * @param arg
      */
     protected boolean tryRelease(int arg) {
         throw new UnsupportedOperationException();
