@@ -485,7 +485,7 @@ public abstract class MyAbstractQueuedSynchronizer implements java.io.Serializab
     }
 
     /**
-     * 获取共享锁
+     * 获取共享锁 响应中断
      *
      * @param arg 凭证
      */
@@ -497,6 +497,63 @@ public abstract class MyAbstractQueuedSynchronizer implements java.io.Serializab
         //只有有获取不到锁的情况下才<0 入队阻塞
         if (tryAcquireShared(arg) < 0) {
             doAcquireSharedInterruptibly(arg);
+        }
+    }
+
+    /**
+     * 获取共享锁 不响应中断
+     *
+     * @param arg 凭证
+     */
+    public void acquireShared(int arg) {
+
+        //只有有获取不到锁的情况下才<0 入队阻塞
+        if (tryAcquireShared(arg) < 0) {
+            doAcquireShared(arg);
+        }
+    }
+
+    /*
+    不响应中断
+     */
+    private boolean doAcquireShared(int arg) {
+        //入队
+        Node node = addNode(Node.SHARED);
+        boolean failed = true;
+        boolean interrupt = false;
+        try {
+            //死循环 线程一直自获取锁
+            for (; ; ) {
+                //1.如果前区节点是头节点 则快速尝试获取锁
+                Node preNode = node.preNode();
+                //一旦入队后 公平锁是一个一个唤醒的
+                //非公平锁 这里就会有竞争了
+                //但是我实际调试公平锁 可能会对细节条件要求更苛刻 才会公平去唤醒 还是存在竞争 目前我先保留 后续我继续测试
+                if (preNode == head && tryAcquireShared(arg) >= 0) {
+                    //走到这里说明
+                    //抢锁成功后，说明旧的头节点已经释放了锁，需要移除队列，在重新设置新的头节点信息
+                    //setHead(node); 和独占锁不一样 需要重写
+
+                    //移除oldHead节点和当前head节点的关联
+                    preNode.next = null;
+                    //没有异常
+                    if (interrupt) {
+                        //重置中断 和 独占锁一样的
+                        Thread.currentThread().interrupt();
+                    }
+                    failed = false;
+                    return interrupt;
+                }//通用的方法不说明了
+                if (shouldParkAfterFailedAcquire(preNode, node) && parkAndCheckInterrupt()) {
+                    //和独占锁区别的地方 这里锁直接抛出异常
+                    interrupt = true;
+                }
+            }
+        } finally {
+            //走到这里说明node自旋发生了异常 需要把node节点从对列中摘除
+            if (failed) {
+                cancelAcquire(node);
+            }
         }
     }
 
@@ -514,7 +571,7 @@ public abstract class MyAbstractQueuedSynchronizer implements java.io.Serializab
                 if (preNode == head && tryAcquireShared(arg) >= 0) {
                     //走到这里说明
                     //抢锁成功后，说明旧的头节点已经释放了锁，需要移除队列，在重新设置新的头节点信息
-                    setHead(node);
+
                     //移除oldHead节点和当前head节点的关联
                     preNode.next = null;
                     //没有异常

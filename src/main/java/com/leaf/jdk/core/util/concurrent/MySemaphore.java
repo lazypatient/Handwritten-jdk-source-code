@@ -101,8 +101,19 @@ public class MySemaphore implements Serializable {
     }
 
 
+    /**
+     * @throws InterruptedException 响应中断
+     */
     public void acquire() throws InterruptedException {
         mySync.acquireSharedInterruptibly(1);
     }
+
+    /**
+     * InterruptedException 不响应中断
+     */
+    public void acquireUnInterruptibly() {
+        mySync.acquireShared(1);
+    }
+
 
 }
