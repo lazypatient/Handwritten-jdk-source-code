@@ -621,11 +621,22 @@ public abstract class MyAbstractQueuedSynchronizer implements java.io.Serializab
             //队列中有节点
             if (h != null && h != tail) {
                 int ws = h.waitStatus;
-                if (!compareAndSetWaitState(h, Node.SIGNAL, 0)) {//多线程修改
-                    continue;
+                if (ws == Node.SIGNAL) {
+                    if (!compareAndSetWaitState(h, Node.SIGNAL, 0)) {//多线程修改
+                        continue;
+                    }
+                    unparkSuccessor(h);//这里会唤醒线程11，线程11抢锁 抢到会修改head指针指向自己
+                } else if (ws == 0) {//???
+
                 }
-                unparkSuccessor(h);
+
             }
+
+            if (h == head) {
+                break;
+            }
+
+
         }
     }
 
